@@ -1,4 +1,6 @@
-# Ansible Module for *xcode-install*
+# xcversion (Ansible Module)
+
+Wrapper around [NeoNacho](twitter.com/neonacho)'s [xcode-install](https://github.com/neonichu/xcode-install).
 
 ```
 > XCVERSION
