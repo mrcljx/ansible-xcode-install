@@ -181,7 +181,7 @@ def main():
         argument_spec=dict(
             version=dict(required=True),
             state=dict(default='selected', choices=['present', 'selected']),
-            clean=dict(default=True, choices=BOOLEANS),
+            clean=dict(default=True, type='bool'),
             user=dict(default=os.getenv("FASTLANE_USER")),
             password=dict(default=os.getenv("FASTLANE_PASSWORD"), no_log=True),
         ),
