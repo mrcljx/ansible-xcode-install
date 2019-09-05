@@ -57,6 +57,11 @@ options:
             - The password for C(user)
         required: false
         default: null
+    xcversion:
+        description:
+            - The path of the `xcversion` binary to use
+        required: false
+        default: "xcversion"
 requirements:
     - OS X
     - xcode-install Ruby Gem
@@ -70,11 +75,6 @@ EXAMPLES = '''
   xcversion: state=selected version=7.1.1
 '''
 
-def check_xcodeinstall():
-    """Returns True if xcode-install gem executable can be found."""
-    null_device = open(os.devnull, 'w')
-    return subprocess.call(['xcversion', '--version'], shell=True, stdout=null_device) == 0
-
 class Xcversion(object):
     """Representation of a single Ansible job."""
 
@@ -83,9 +83,19 @@ class Xcversion(object):
         self.version = module.params['version']
         self.check_mode = module.check_mode
 
+    def check_xcodeinstall(self):
+        """Returns True if xcode-install gem executable can be found."""
+        return subprocess.call(self.xcversion_cmd('--version')) == 0
+
+    def xcversion_bin(self):
+        return self.module.params.get('xcversion', 'xcversion')
+
+    def xcversion_cmd(self, *args):
+        return [self.xcversion_bin()] + args
+
     def check_installed(self):
         """Checks whether the desired version of Xcode is installed."""
-        output = subprocess.check_output(['xcversion', 'installed'])
+        output = subprocess.check_output(self.xcversion_cmd('installed'))
         lines = output.split('\n')
 
         for line in lines:
@@ -113,9 +123,9 @@ class Xcversion(object):
         env["FASTLANE_USER"] = user
         env["FASTLANE_PASSWORD"] = password
 
-        subprocess.check_call(['xcversion', 'update'], env=env) # TODO: only call if needed
+        subprocess.check_call(self.xcversion_cmd('update'), env=env) # TODO: only call if needed
 
-        install_cmd = ['xcversion', 'install']
+        install_cmd = self.xcversion_cmd('install')
         if not self.module.params['clean']:
             install_cmd.append('--no-clean')
         install_cmd.append(self.version)
@@ -125,7 +135,7 @@ class Xcversion(object):
 
     def check_selected(self):
         """Checks whether the desired version of Xcode is selected."""
-        output = subprocess.check_output(['xcversion', 'selected'])
+        output = subprocess.check_output(self.xcversion_cmd('selected'))
         lines = output.split('\n')
         return self.version in lines[0]
 
@@ -136,13 +146,13 @@ class Xcversion(object):
         if self.check_mode:
             return (True, None)
 
-        subprocess.check_call(['xcversion', 'select', self.version])
+        subprocess.check_call(self.xcversion_cmd('select', self.version))
 
         return (True, None)
 
     def run(self):
         """Executes the Ansible command."""
-        if not check_xcodeinstall():
+        if not self.check_xcodeinstall():
             if self.check_mode:
                 self.module.exit_json(changed=True)
 
@@ -184,6 +194,7 @@ def main():
             clean=dict(default=True, choices=BOOLEANS),
             user=dict(default=os.getenv("FASTLANE_USER")),
             password=dict(default=os.getenv("FASTLANE_PASSWORD"), no_log=True),
+            xcversion=dict(default='xcversion'),
         ),
         supports_check_mode=True,
     )
